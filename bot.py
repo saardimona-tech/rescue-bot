@@ -80,4 +80,6 @@ async def main():
     app.add_handler(MessageHandler(filters.ALL, handle))
 
     await app.run_polling()
-asyncio.run(main()) 
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
