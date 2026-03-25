@@ -1,6 +1,8 @@
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
+import asyncio
+
 TOKEN = "8625498364:AAHW0ieQt2WQfn6eEEmw93_OMji5Enqwcp4"
 CHANNEL_ID = "@SaarDimona"
 
@@ -9,6 +11,7 @@ COMMANDERS = ["יבגני", "יהונתן", "אסף", "יניב", "סרג", "א�
 
 users = {}
 status = {}
+
 
 def is_commander(name):
     return name in COMMANDERS
@@ -23,7 +26,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text if update.message.text else None
 
-    # שליחת מיקום
+    # מיקום
     if update.message.location:
         user = users.get(user_id)
         if not user:
@@ -39,7 +42,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
 
-    # הכנסת שם
+    # שם
     if context.user_data.get("step") == "name":
         context.user_data["name"] = text
 
@@ -51,7 +54,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["step"] = "team"
 
-    # בחירת צוות
+    # צוות
     elif context.user_data.get("step") == "team":
         context.user_data["team"] = text
         users[user_id] = context.user_data.copy()
@@ -71,25 +74,29 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["step"] = "done"
 
-    # הגעה לזירה
+    # הגעה
     elif text == "✅ הגעתי לזירה":
         user = users.get(user_id)
         if not user:
             return
 
         status[user_id] = True
-        msg = f"{user['name']} | {user['team']} הגיע לזירה 🟢"
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=msg)
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=f"{user['name']} | {user['team']} הגיע לזירה 🟢"
+        )
 
-    # יציאה מהזירה
+    # יציאה
     elif text == "❌ יצאתי מהזירה":
         user = users.get(user_id)
         if not user:
             return
 
         status[user_id] = False
-        msg = f"{user['name']} | {user['team']} יצא מהזירה 🔴"
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=msg)
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=f"{user['name']} | {user['team']} יצא מהזירה 🔴"
+        )
 
     # מי בזירה
     elif text == "📊 מי בזירה":
@@ -106,7 +113,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result += f"\nסה\"כ בזירה: {count}"
         await update.message.reply_text(result)
 
-    # שליחת מיקום
+    # בקשת מיקום
     elif text == "📍 שלח מיקום":
         button = [[KeyboardButton("שלח מיקום", request_location=True)]]
         await update.message.reply_text(
@@ -114,7 +121,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=ReplyKeyboardMarkup(button, resize_keyboard=True)
         )
 
-    # הקפצת חירום
+    # הקפצה
     elif text == "🚨 הקפצת חירום":
         user = users.get(user_id)
         if not user or not is_commander(user["name"]):
@@ -132,14 +139,14 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "done"
 
 
-def main():
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ALL, handle))
 
-    app.run_polling()
+    await app.run_polling()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
