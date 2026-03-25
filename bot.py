@@ -1,7 +1,11 @@
 
+
+
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from datetime import datetime
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 
 TOKEN = "8625498364:AAHW0ieQt2WQfn6eEEmw93_OMji5Enqwcp4"
 CHANNEL_ID = "@SaarDimona"
@@ -12,212 +16,213 @@ COMMANDERS = ["יבגני", "יהונתן", "אסף", "יניב", "סרג", "א�
 users = {}
 status = {}
 locations = {}
-log_times = {}
+arrival_times = {}
+leave_times = {}
 
-# ===== עזר =====
 def is_commander(name):
     return name in COMMANDERS
 
-def get_menu(name):
+def get_main_keyboard(user):
     buttons = [
         ["✅ הגעתי לזירה", "❌ יצאתי מהזירה"],
-        ["📍 שלח מיקום", "📊 מי בזירה"],
-        ["📍 מפת מחלצים"]
+        ["📍 שלח מיקום", "📊 מי בזירה"]
     ]
 
-    if is_commander(name):
-        buttons.append(["🚨 הקפצת חירום", "🧾 דוח אירוע"])
-        buttons.append(["📊 דשבורד", "🛑 סיום אירוע"])
+    if is_commander(user["name"]):
+        buttons.append(["🚨 הקפצת חירום"])
+        buttons.append(["🛑 סיום אירוע"])
+        buttons.append(["🗺️ הצג מיקומים"])
 
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
-async def notify_commanders(context, message):
-    for uid, u in users.items():
-        if is_commander(u["name"]):
-            try:
-                await context.bot.send_message(chat_id=uid, text=message)
-            except:
-                pass
-
-# ===== התחלה =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("ברוך הבא 🚑\nרשום שם:")
+    await update.message.reply_text("ברוך הבא למערכת חילוץ 🚑\nרשום שם:")
     context.user_data["step"] = "name"
 
-# ===== לוגיקה =====
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    text = update.message.text if update.message.text else None
+    text = update.message.text
 
-    # ===== מיקום =====
-    if update.message.location:
-        user = users.get(user_id)
-        if not user or not is_commander(user["name"]):
-            return
-
-        loc = update.message.location
-        locations[user_id] = (loc.latitude, loc.longitude)
-
-        await context.bot.send_message(
-            chat_id=CHANNEL_ID,
-            text=f"{user['name']} שלח מיקום 📍\nhttps://maps.google.com/?q={loc.latitude},{loc.longitude}"
-        )
-
-        await update.message.reply_text("נשמר מיקום 👍", reply_markup=get_menu(user["name"]))
-        return
-
-    if not text:
-        return
-
-    # ===== שם =====
+    # הרשמה
     if context.user_data.get("step") == "name":
         context.user_data["name"] = text
         keyboard = [[team] for team in TEAMS]
 
-        await update.message.reply_text("בחר צוות:", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        await update.message.reply_text(
+            "בחר צוות:",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        )
+
         context.user_data["step"] = "team"
 
-    # ===== צוות =====
     elif context.user_data.get("step") == "team":
         context.user_data["team"] = text
         users[user_id] = context.user_data.copy()
 
-        await update.message.reply_text("בחר פעולה:", reply_markup=get_menu(context.user_data["name"]))
-        context.user_data["step"] = "done"
-
-    # ===== הגעה =====
-    elif text == "✅ הגעתי לזירה":
-        user = users[user_id]
-        status[user_id] = True
-        log_times[user_id] = {"in": datetime.now(), "out": None}
-
-        msg = f"{user['name']} | {user['team']} הגיע לזירה 🟢"
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=msg)
-
-        await notify_commanders(context, f"🟢 {user['name']} נכנס לזירה")
-
-        await update.message.reply_text("נרשמת 👍", reply_markup=get_menu(user["name"]))
-
-    # ===== יציאה =====
-    elif text == "❌ יצאתי מהזירה":
-        user = users[user_id]
-        status[user_id] = False
-
-        if user_id in log_times:
-            log_times[user_id]["out"] = datetime.now()
-
-        msg = f"{user['name']} | {user['team']} יצא מהזירה 🔴"
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=msg)
-
-        await notify_commanders(context, f"🔴 {user['name']} יצא מהזירה")
-
-        await update.message.reply_text("עודכן 👍", reply_markup=get_menu(user["name"]))
-
-    # ===== מי בזירה =====
-    elif text == "📊 מי בזירה":
-        user = users[user_id]
-
-        if is_commander(user["name"]):
-            result = ""
-            for team in TEAMS:
-                result += f"\n{team}:\n"
-                for uid, st in status.items():
-                    if st and users[uid]["team"] == team:
-                        result += f"- {users[uid]['name']}\n"
-        else:
-            count = sum(1 for st in status.values() if st)
-            result = f"סה\"כ בזירה: {count}"
-
-        await update.message.reply_text(result, reply_markup=get_menu(user["name"]))
-
-    # ===== מפה =====
-    elif text == "📍 מפת מחלצים":
-        links = ""
-        for uid, loc in locations.items():
-            name = users[uid]["name"]
-            links += f"{name}: https://maps.google.com/?q={loc[0]},{loc[1]}\n"
-
-        if not links:
-            links = "אין מיקומים"
-
-        await update.message.reply_text(links)
-
-    # ===== דוח =====
-    elif text == "🧾 דוח אירוע":
-        user = users[user_id]
-        if not is_commander(user["name"]):
-            return
-
-        report = "📊 דוח אירוע:\n\n"
-        for uid, times in log_times.items():
-            name = users[uid]["name"]
-            report += f"{name}\nכניסה: {times['in']}\nיציאה: {times['out']}\n\n"
-
-        await update.message.reply_text(report)
-
-    # ===== דשבורד =====
-    elif text == "📊 דשבורד":
-        user = users[user_id]
-        if not is_commander(user["name"]):
-            return
-
-        total = len(users)
-        active = sum(1 for s in status.values() if s)
-        with_location = len(locations)
-        teams_active = len(set(u["team"] for uid, u in users.items() if status.get(uid)))
-
-        dashboard = (
-            "📊 דשבורד ניהולי\n\n"
-            f"סה\"כ רשומים: {total}\n"
-            f"בזירה עכשיו: {active}\n"
-            f"שלחו מיקום: {with_location}\n"
-            f"צוותים פעילים: {teams_active}"
+        await update.message.reply_text(
+            "בחר פעולה:",
+            reply_markup=get_main_keyboard(context.user_data)
         )
 
-        await update.message.reply_text(dashboard)
+        context.user_data["step"] = "done"
 
-    # ===== סיום אירוע =====
-    elif text == "🛑 סיום אירוע":
-        user = users[user_id]
+    # הגעה
+    elif text == "✅ הגעתי לזירה":
+        user = users.get(user_id)
+        status[user_id] = True
+        arrival_times[user_id] = datetime.now()
+
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=f"{user['name']} | {user['team']} הגיע לזירה 🟢"
+        )
+
+    # יציאה
+    elif text == "❌ יצאתי מהזירה":
+        user = users.get(user_id)
+        status[user_id] = False
+        leave_times[user_id] = datetime.now()
+
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=f"{user['name']} | {user['team']} יצא מהזירה 🔴"
+        )
+
+    # מי בזירה
+    elif text == "📊 מי בזירה":
+        result = ""
+        count = 0
+
+        for team in TEAMS:
+            result += f"\n{team}:\n"
+            for uid, st in status.items():
+                if st and users[uid]["team"] == team:
+                    result += f"- {users[uid]['name']}\n"
+                    count += 1
+
+        result += f"\nסה\"כ: {count}"
+        await update.message.reply_text(result)
+
+    # שליחת מיקום
+    elif text == "📍 שלח מיקום":
+        user = users.get(user_id)
+
+        if not is_commander(user["name"]):
+            await update.message.reply_text("אין הרשאה לשלוח מיקום ❌")
+            return
+
+        button = [[KeyboardButton("שלח מיקום", request_location=True)]]
+
+        await update.message.reply_text(
+            "שלח מיקום:",
+            reply_markup=ReplyKeyboardMarkup(button, resize_keyboard=True)
+        )
+
+    # קבלת מיקום
+    elif update.message.location:
+        user = users.get(user_id)
+        loc = update.message.location
+
+        locations[user_id] = (loc.latitude, loc.longitude)
+
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=f"{user['name']} שלח מיקום 📍 https://maps.google.com/?q={loc.latitude},{loc.longitude}"
+        )
+
+        # החזרת הכפתורים 🔥
+        await update.message.reply_text(
+            "בחר פעולה:",
+            reply_markup=get_main_keyboard(user)
+        )
+
+    # הצגת מיקומים (מפקדים בלבד)
+    elif text == "🗺️ הצג מיקומים":
+        user = users.get(user_id)
+
         if not is_commander(user["name"]):
             return
 
-        status.clear()
-        locations.clear()
-        log_times.clear()
+        if not locations:
+            await update.message.reply_text("אין מיקומים עדיין")
+            return
 
-        await context.bot.send_message(chat_id=CHANNEL_ID, text="🛑 האירוע הסתיים\nכל הנתונים אופסו")
+        msg = "🗺️ מיקומי מחלצים:\n\n"
 
-        for uid in users:
-            try:
-                await context.bot.send_message(chat_id=uid, text="🛑 האירוע הסתיים")
-            except:
-                pass
+        for uid, loc in locations.items():
+            name = users[uid]["name"]
+            msg += f"{name}:\nhttps://maps.google.com/?q={loc[0]},{loc[1]}\n\n"
 
-        await update.message.reply_text("האירוע אופס ✅")
+        await update.message.reply_text(msg)
 
-    # ===== הקפצה =====
+    # הקפצת חירום
     elif text == "🚨 הקפצת חירום":
-        user = users[user_id]
+        user = users.get(user_id)
+
         if not is_commander(user["name"]):
             return
 
-        await update.message.reply_text("כתוב פרטים:")
+        await update.message.reply_text("כתוב הודעת חירום:")
         context.user_data["step"] = "alert"
 
     elif context.user_data.get("step") == "alert":
-        msg = f"🚨 הקפצה 🚨\n{text}"
+        msg = f"🚨 הקפצת חירום 🚨\n{text}"
 
         for uid in users:
-            try:
-                await context.bot.send_message(chat_id=uid, text=msg)
-            except:
-                pass
+            await context.bot.send_message(chat_id=uid, text=msg)
 
         await context.bot.send_message(chat_id=CHANNEL_ID, text=msg)
+
         context.user_data["step"] = "done"
 
-# ===== הרצה =====
+    # סיום אירוע + PDF
+    elif text == "🛑 סיום אירוע":
+        user = users.get(user_id)
+
+        if not is_commander(user["name"]):
+            return
+
+        # יצירת PDF
+        doc = SimpleDocTemplate("report.pdf")
+        styles = getSampleStyleSheet()
+
+        content = []
+
+        content.append(Paragraph("דו\"ח אירוע חילוץ", styles["Title"]))
+        content.append(Paragraph(datetime.now().strftime("%d/%m %H:%M"), styles["Normal"]))
+
+        total = 0
+
+        for team in TEAMS:
+            content.append(Paragraph(f"<br/><b>{team}</b>", styles["Normal"]))
+
+            for uid, u in users.items():
+                if u["team"] == team:
+                    total += 1
+                    st = "בזירה" if status.get(uid) else "יצא"
+
+                    content.append(Paragraph(
+                        f"{u['name']} - {st}",
+                        styles["Normal"]
+                    ))
+
+        doc.build(content)
+
+        # שליחה למפקדים
+        for uid, u in users.items():
+            if is_commander(u["name"]):
+                await context.bot.send_document(chat_id=uid, document=open("report.pdf", "rb"))
+
+        await context.bot.send_message(chat_id=CHANNEL_ID, text="🛑 האירוע הסתיים")
+
+        # איפוס
+        status.clear()
+        locations.clear()
+        arrival_times.clear()
+        leave_times.clear()
+
+        await update.message.reply_text("אירוע אופס ✅")
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
