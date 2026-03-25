@@ -113,14 +113,22 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ===== קבלת מיקום =====
-    elif update.message.location:
-        loc = update.message.location
-        locations[user_id] = (loc.latitude, loc.longitude)
+  elif update.message.location:
+    loc = update.message.location
+    locations[user_id] = (loc.latitude, loc.longitude)
 
-        await context.bot.send_message(
-            chat_id=CHANNEL_ID,
-            text=f"{user['name']} 📍 https://maps.google.com/?q={loc.latitude},{loc.longitude}"
-        )
+    await context.bot.send_message(
+        chat_id=CHANNEL_ID,
+        text=f"{user['name']} 📍 https://maps.google.com/?q={loc.latitude},{loc.longitude}"
+    )
+
+    # 🔥 זה הפתרון שלך
+    await update.message.reply_text(
+        "המיקום נשלח ✅\nבחר פעולה:",
+        reply_markup=get_keyboard(user)
+    )
+
+    return
 
     # ===== הצג מיקומים =====
     elif text == "🗺️ הצג מיקומים":
