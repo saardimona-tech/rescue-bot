@@ -73,13 +73,12 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for uid in users:
             await context.bot.send_message(chat_id=uid, text=msg)
         context.user_data["step"] = "done"
-async def main():
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ALL, handle))
 
-    await app.run_polling()
+    app.run_polling()
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
