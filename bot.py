@@ -74,9 +74,9 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "done"
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ALL, handle))
-    app.run_polling()
-import asyncio
 
+    await app.run_polling()
 asyncio.run(main())
