@@ -1,9 +1,9 @@
+
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-import asyncio
-
 TOKEN = "8625498364:AAHW0ieQt2WQfn6eEEmw93_OMji5Enqwcp4"
+
 CHANNEL_ID = "@SaarDimona"
 
 TEAMS = ["צוות 1", "צוות 2", "צוות 3", "צוות רפואה", "מודיעין אוכלוסייה"]
@@ -139,14 +139,15 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "done"
 
 
-async def main():
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ALL, handle))
 
-    await app.run_polling()
+    # 🔥 הפתרון הקריטי
+    app.run_polling(close_loop=False)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
