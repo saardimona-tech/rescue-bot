@@ -37,7 +37,7 @@ def run_server():
             self.wfile.write(b"Bot running")
 
     server = HTTPServer(("0.0.0.0", port), Handler)
-    print(f"Server running on port {port}")  # חשוב!
+    print(f"Server running on port {port}")
     server.serve_forever()
 
 # ===== helpers =====
@@ -68,7 +68,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text if update.message.text else ""
     user = users.get(user_id)
 
-    # ===== מיקום =====
+    # ===== קבלת מיקום =====
     if update.message.location:
         if not user:
             await update.message.reply_text("שלח /start קודם")
@@ -82,7 +82,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"{user['name']} 📍 https://maps.google.com/?q={loc.latitude},{loc.longitude}"
         )
 
-        await update.message.reply_text("מיקום נשלח ✅", reply_markup=get_keyboard(user))
+        await update.message.reply_text(
+            "📍 מיקום התקבל בהצלחה!",
+            reply_markup=get_keyboard(user)
+        )
         return
 
     # ===== הרשמה =====
@@ -145,16 +148,12 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(result)
 
-    # ===== שלח מיקום =====
+    # ===== שליחת מיקום (לכולם!) =====
     elif text == "📍 שלח מיקום":
-        if not is_commander(user["name"]):
-            await update.message.reply_text("אין הרשאה ❌")
-            return
-
         button = [[KeyboardButton("שלח מיקום", request_location=True)]]
 
         await update.message.reply_text(
-            "שלח מיקום:",
+            "לחץ ושלח מיקום:",
             reply_markup=ReplyKeyboardMarkup(button, resize_keyboard=True)
         )
         return
@@ -170,7 +169,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for uid, loc in locations.items():
             if users.get(uid) and status.get(uid):
                 name = users[uid]["name"]
-                msg += f"{name}:\nhttps://maps.google.com/?q={loc[0]},{loc[1]}\n\n"
+                team = users[uid]["team"]
+                msg += f"{name} ({team}):\nhttps://maps.google.com/?q={loc[0]},{loc[1]}\n\n"
                 found = True
 
         if not found:
@@ -222,7 +222,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("האירוע נסגר ✅")
         return
 
-    # ===== תמיד מחזיר תפריט =====
+    # ===== תפריט =====
     await update.message.reply_text("בחר פעולה:", reply_markup=get_keyboard(user))
 
 
@@ -237,5 +237,5 @@ def main():
 
 
 if __name__ == "__main__":
-    threading.Thread(target=run_server, daemon=True).start()  # 👈 התיקון הקריטי
+    threading.Thread(target=run_server, daemon=True).start()
     main()
