@@ -10,16 +10,23 @@ import os
 
 TOKEN = "8625498364:AAHW0ieQt2WQfn6eEEmw93_OMji5Enqwcp4"
 CHANNEL_ID = "@SaarDimoma"
-    
 
-TEAMS = ["צוות 1", "צוות 2", "צוות 3", "צוות רפואה", "מודיעין אוכלוסייה"]
+TEAMS = [
+    "צוות 1",
+    "צוות 2",
+    "צוות 3",
+    "צוות רפואה",
+    "מודיעין אוכלוסייה",
+    "צוות פיקוד"
+]
+
 COMMANDERS = ["יבגני", "יהונתן", "אסף", "יניב", "סרג", "אבישג"]
 
 users = {}
 status = {}
 locations = {}
 
-# ===== server =====
+# ===== server (Render) =====
 def run_server():
     port = int(os.environ.get("PORT", 10000))
 
@@ -46,6 +53,7 @@ def get_keyboard(user):
     if is_commander(user["name"]):
         buttons.append(["🚨 הקפצת חירום"])
         buttons.append(["🛑 סיום אירוע"])
+        buttons.append(["🗺️ הצג מיקומים"])
 
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
@@ -136,6 +144,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result += f"\n👥 סה\"כ בזירה: {total}"
 
         await update.message.reply_text(result)
+
     # ===== שלח מיקום =====
     elif text == "📍 שלח מיקום":
         if not is_commander(user["name"]):
@@ -149,6 +158,26 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=ReplyKeyboardMarkup(button, resize_keyboard=True)
         )
         return
+
+    # ===== הצגת מיקומים =====
+    elif text == "🗺️ הצג מיקומים":
+        if not is_commander(user["name"]):
+            return
+
+        msg = "🗺️ מיקומי מחלצים בזירה:\n\n"
+        found = False
+
+        for uid, loc in locations.items():
+            if users.get(uid) and status.get(uid):
+                name = users[uid]["name"]
+                msg += f"{name}:\nhttps://maps.google.com/?q={loc[0]},{loc[1]}\n\n"
+                found = True
+
+        if not found:
+            await update.message.reply_text("אין מיקומים של מחלצים בזירה ❌")
+            return
+
+        await update.message.reply_text(msg)
 
     # ===== הקפצת חירום =====
     elif text == "🚨 הקפצת חירום":
@@ -171,12 +200,11 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "done"
         return
 
-    # ===== סיום אירוע (רק מפקדים!) =====
+    # ===== סיום אירוע =====
     elif text == "🛑 סיום אירוע":
         if not is_commander(user["name"]):
             return
 
-        # שליחה לכולם להתחיל מחדש
         for uid in users:
             try:
                 await context.bot.send_message(
@@ -186,7 +214,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
 
-        # איפוס מלא
         users.clear()
         status.clear()
         locations.clear()
@@ -195,7 +222,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("האירוע נסגר ✅")
         return
 
-    # ===== החזרת תפריט תמיד =====
+    # ===== תמיד מחזיר תפריט =====
     await update.message.reply_text("בחר פעולה:", reply_markup=get_keyboard(user))
 
 # ===== run =====
