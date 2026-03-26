@@ -115,28 +115,27 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=CHANNEL_ID, text=f"{user['name']} יצא 🔴")
 
     # ===== מי בזירה =====
-  elif text == "📊 מי בזירה":
-    result = ""
-    total = 0
-    global_counter = 1
+    elif text == "📊 מי בזירה":
+        result = ""
+        total = 0
+        global_counter = 1
 
-    for team in TEAMS:
-        result += f"\n🔹 {team}:\n"
-        team_count = 0
+        for team in TEAMS:
+            result += f"\n🔹 {team}:\n"
+            team_count = 0
 
-        for uid, st in status.items():
-            if st and users.get(uid) and users[uid]["team"] == team:
-                result += f"{global_counter}. {users[uid]['name']}\n"
-                team_count += 1
-                total += 1
-                global_counter += 1
+            for uid, st in status.items():
+                if st and users.get(uid) and users[uid]["team"] == team:
+                    result += f"{global_counter}. {users[uid]['name']}\n"
+                    team_count += 1
+                    total += 1
+                    global_counter += 1
 
-        result += f"סה\"כ בצוות: {team_count}\n"
+            result += f"סה\"כ בצוות: {team_count}\n"
 
-    result += f"\n👥 סה\"כ בזירה: {total}"
+        result += f"\n👥 סה\"כ בזירה: {total}"
 
-    await update.message.reply_text(result)
-
+        await update.message.reply_text(result)
     # ===== שלח מיקום =====
     elif text == "📍 שלח מיקום":
         if not is_commander(user["name"]):
