@@ -26,7 +26,7 @@ users = {}
 status = {}
 locations = {}
 
-# ===== server (Render) =====
+# ===== server (Render FIXED) =====
 def run_server():
     port = int(os.environ.get("PORT", 10000))
 
@@ -36,9 +36,9 @@ def run_server():
             self.end_headers()
             self.wfile.write(b"Bot running")
 
-    HTTPServer(("0.0.0.0", port), Handler).serve_forever()
-
-threading.Thread(target=run_server).start()
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    print(f"Server running on port {port}")  # חשוב!
+    server.serve_forever()
 
 # ===== helpers =====
 def is_commander(name):
@@ -225,6 +225,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== תמיד מחזיר תפריט =====
     await update.message.reply_text("בחר פעולה:", reply_markup=get_keyboard(user))
 
+
 # ===== run =====
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -234,5 +235,7 @@ def main():
 
     app.run_polling()
 
+
 if __name__ == "__main__":
+    threading.Thread(target=run_server, daemon=True).start()  # 👈 התיקון הקריטי
     main()
