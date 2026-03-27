@@ -18,7 +18,7 @@ try:
 except:
     def fix(text): return text  # fallback בלי פונט
 
-TOKEN = "8625498364:AAHW0ieQt2WQfn6eEEmw93_OMji5Enqwcp4"
+TOKEN = "8625498364:AAEdQyQMRa_PQUTBnGVmf8sPLC6B_-GDPRI"
 CHANNEL_ID = "@SaarDimoma"
 
 TEAMS = [
